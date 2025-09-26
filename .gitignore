@@ -48,3 +48,9 @@ dist-ssr
 *.sln
 *.sw?
 
+node_modules
+dist
+.git
+.vscode
+.env
+*.log

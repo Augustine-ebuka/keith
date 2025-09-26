@@ -1,17 +1,23 @@
-FROM node:20-alpine
-
-# Set working directory
+# Stage 1: build the app
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install dependencies first (cached layer)
+# copy package files first for better caching
 COPY package*.json ./
-RUN npm install
+# or if you use yarn: COPY yarn.lock package.json ./
+RUN npm ci
 
-# Copy rest of the app
+# copy source and build
 COPY . .
+RUN npm run build
 
-# Expose React dev server port
-EXPOSE 3000
+# Stage 2: serve with nginx
+FROM nginx:stable-alpine AS production
+# Copy custom nginx config (optional, recommended for SPAs)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Start React app
-CMD ["npm", "start"]
+# Copy built static files from builder
+COPY --from=builder /app/dist /usr/share/nginx/html
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
