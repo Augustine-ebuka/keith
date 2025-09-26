@@ -5,52 +5,78 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/inpute";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Plus, X, Edit, Trash } from "lucide-react";
+import { Plus, X, Edit, Trash, ArrowLeft, Settings, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
+import useApiStore from "../stores/apiStore";
 
-// ---------------- Mock Data ----------------
+// Mock data for projects
 const mockProjects = [
-  { id: "p1", name: "Project Alpha" },
-  { id: "p2", name: "Project Beta" },
-];
-
-const mockLabels = [
-  { id: "l1", name: "Frontend" },
-  { id: "l2", name: "Backend" },
-  { id: "l3", name: "Bug" },
-];
-
-const mockEvents = [
-  { id: "e1", name: "Issue Created" },
-  { id: "e2", name: "Issue Closed" },
-  { id: "e3", name: "Issue Labeled" },
-];
-
-const mockSlackChannels = [
-  { id: "c1", name: "#general" },
-  { id: "c2", name: "#dev-team" },
-  { id: "c3", name: "#alerts" },
-];
-
-const mockMappings = [
   {
-    id: "m1",
-    project: "Project Alpha",
-    labels: ["Frontend", "Bug"],
-    events: ["Issue Created", "Issue Closed"],
-    channels: ["#general"],
+    id: "p1",
+    name: "Project Alpha",
+    description: "Frontend application for customer portal",
+    status: "active",
+    createdAt: "2024-01-15"
   },
   {
-    id: "m2",
-    project: "Project Beta",
-    labels: ["Backend"],
-    events: ["Issue Labeled"],
-    channels: ["#dev-team", "#alerts"],
+    id: "p2", 
+    name: "Project Beta",
+    description: "Backend API services and microservices",
+    status: "active",
+    createdAt: "2024-02-01"
   },
+  {
+    id: "p3",
+    name: "Project Gamma", 
+    description: "Mobile application for iOS and Android",
+    status: "inactive",
+    createdAt: "2024-01-30"
+  }
 ];
 
-// ---------------- Pills Component ----------------
-function PillsSelector({ options, selected, setSelected }) {
+// Mock data for mappings
+const mockMappings = {
+  "p1": [
+    {
+      id: "m1",
+      projectId: "p1",
+      name: "Frontend Issues Mapping",
+      description: "Maps frontend issues to development channel",
+      labels: ["Frontend", "Bug", "Feature"],
+      events: ["Issue Created", "Issue Closed"],
+      channels: ["#frontend-dev", "#general"]
+    },
+    {
+      id: "m2", 
+      projectId: "p1",
+      name: "Critical Alerts Mapping",
+      description: "High priority issues routing",
+      labels: ["Critical", "Bug"],
+      events: ["Issue Created"],
+      channels: ["#alerts", "#management"]
+    }
+  ],
+  "p2": [
+    {
+      id: "m3",
+      projectId: "p2", 
+      name: "Backend Issues Mapping",
+      description: "Backend service issues and API problems",
+      labels: ["Backend", "API", "Database"],
+      events: ["Issue Created", "Issue Labeled"],
+      channels: ["#backend-dev", "#devops"]
+    }
+  ],
+  "p3": []
+};
+
+// Available options for mappings
+const availableLabels = ["Frontend", "Backend", "Bug", "Feature", "Critical", "API", "Database", "Mobile", "UI/UX"];
+const availableEvents = ["Issue Created", "Issue Closed", "Issue Labeled", "Issue Assigned", "Issue Reopened"];
+const availableChannels = ["#general", "#frontend-dev", "#backend-dev", "#mobile-dev", "#alerts", "#management", "#devops"];
+
+// Pills Selector Component
+function PillsSelector({ options, selected, setSelected, placeholder }) {
   const toggleSelect = (option) => {
     if (selected.includes(option)) {
       setSelected(selected.filter((o) => o !== option));
@@ -60,40 +86,181 @@ function PillsSelector({ options, selected, setSelected }) {
   };
 
   return (
-    <div className="flex flex-wrap gap-2">
-      {options.map((opt) => (
-        <Badge
-          key={opt.id}
-          onClick={() => toggleSelect(opt.name)}
-          className={`cursor-pointer px-3 py-1 rounded-full ${
-            selected.includes(opt.name) ? "bg-purple-600 text-white" : "bg-gray-200"
-          }`}
-        >
-          {opt.name}
-        </Badge>
-      ))}
+    <div className="space-y-2">
+      <div className="flex flex-wrap gap-2 min-h-[40px] p-2 border rounded-md">
+        {selected.length === 0 ? (
+          <span className="text-muted-foreground text-sm">{placeholder}</span>
+        ) : (
+          selected.map((item) => (
+            <Badge
+              key={item}
+              className="cursor-pointer bg-primary text-primary-foreground"
+              onClick={() => toggleSelect(item)}
+            >
+              {item} <X className="ml-1 h-3 w-3" />
+            </Badge>
+          ))
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {options.filter(opt => !selected.includes(opt)).map((opt) => (
+          <Badge
+            key={opt}
+            onClick={() => toggleSelect(opt)}
+            className="cursor-pointer bg-muted hover:bg-muted/80"
+          >
+            {opt}
+          </Badge>
+        ))}
+      </div>
     </div>
   );
 }
 
-// ---------------- Drawer Component ----------------
-function Drawer({ open, onClose, onSave, editData }) {
-  const [project, setProject] = useState(editData?.project || "");
+// Project Form Drawer
+function ProjectDrawer({ open, onClose, onSave, editData }) {
+  const [name, setName] = useState(editData?.name || "");
+  const [description, setDescription] = useState(editData?.description || "");
+  const [status, setStatus] = useState(editData?.status || "active");
+  const { data, loading, error, fetchData, postData, putData, deleteData } = useApiStore();
+
+  useEffect(() => {
+    if (editData) {
+      setName(editData.name || "");
+      setDescription(editData.description || "");
+      setStatus(editData.status || "active");
+    } else {
+      setName("");
+      setDescription("");
+      setStatus("active");
+    }
+  }, [editData, open]);
+
+  const handleSave = () => {
+    if (!name.trim()) {
+      toast.error("Project name is required");
+      return;
+    }
+
+    const projectPayload = {
+      id: editData?.id || `p${Date.now()}`,
+      name: name.trim(),
+      description: description.trim(),
+      // status,
+      // createdAt: editData?.createdAt || new Date().toISOString().split('T')[0]
+    };
+
+    onSave(projectPayload);
+
+    if (editData) {
+      // Edit mode: update existing project
+      putData(`/mappings/projects/${editData.id}`, projectPayload);
+    } else {
+      // Create mode: create new project
+      postData('/mappings/projects', projectPayload);
+    }
+
+    onClose();
+  };
+
+  if (!open) return null;
+
+  return (
+    <>
+      <div 
+        className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
+        onClick={onClose}
+      />
+      <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
+        <div className="p-6 h-full overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-lg font-bold">{editData ? "Edit Project" : "New Project"}</h2>
+            <Button variant="ghost" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium block mb-2">Project Name *</label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter project name"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium block mb-2">Description</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter project description"
+                rows={3}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium block mb-2">Status</label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Button className="w-full" onClick={handleSave}>
+              {editData ? "Update Project" : "Create Project"}
+            </Button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// Mapping Form Drawer
+function MappingDrawer({ open, onClose, onSave, editData, projectId }) {
+  const [name, setName] = useState(editData?.name || "");
+  const [description, setDescription] = useState(editData?.description || "");
   const [labels, setLabels] = useState(editData?.labels || []);
   const [events, setEvents] = useState(editData?.events || []);
   const [channels, setChannels] = useState(editData?.channels || []);
 
+  useEffect(() => {
+    if (editData) {
+      setName(editData.name || "");
+      setDescription(editData.description || "");
+      setLabels(editData.labels || []);
+      setEvents(editData.events || []);
+      setChannels(editData.channels || []);
+    } else {
+      setName("");
+      setDescription("");
+      setLabels([]);
+      setEvents([]);
+      setChannels([]);
+    }
+  }, [editData, open]);
+
   const handleSave = () => {
+    if (!name.trim()) {
+      toast.error("Mapping name is required");
+      return;
+    }
+
     onSave({
-      id: editData?.id || Date.now().toString(),
-      project,
+      id: editData?.id || `m${Date.now()}`,
+      projectId,
+      name: name.trim(),
+      description: description.trim(),
       labels,
       events,
-      channels,
-    });
-    toast.success("Mapping successful!", {
-        description: "Your request has been posted to #feature-requests and a Linear issue has been created.",
-        duration: 5000,
+      channels
     });
     onClose();
   };
@@ -102,20 +269,11 @@ function Drawer({ open, onClose, onSave, editData }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div 
-        className={`fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ${
-          open ? 'opacity-100' : 'opacity-0'
-        }`}
+        className="fixed inset-0 bg-black/50 z-40 transition-opacity duration-300"
         onClick={onClose}
       />
-      
-      {/* Sliding Drawer */}
-      <div 
-        className={`fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out ${
-          open ? 'translate-x-0' : 'translate-x-full'
-        }`}
-      >
+      <div className="fixed top-0 right-0 h-full w-96 bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
         <div className="p-6 h-full overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-lg font-bold">{editData ? "Edit Mapping" : "New Mapping"}</h2>
@@ -124,121 +282,332 @@ function Drawer({ open, onClose, onSave, editData }) {
             </Button>
           </div>
 
-          {/* Project */}
-          <div className="mb-4">
-            <label className="text-sm font-medium block mb-2">Project</label>
-            <Select onValueChange={(val) => setProject(val)} value={project}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                {mockProjects.map((p) => (
-                  <SelectItem key={p.id} value={p.name}>
-                    {p.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <div className="space-y-6">
+            <div>
+              <label className="text-sm font-medium block mb-2">Mapping Name *</label>
+              <Input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter mapping name"
+              />
+            </div>
 
-          {/* Labels */}
-          <div className="mb-4">
-            <label className="text-sm font-medium block mb-2">Labels</label>
-            <PillsSelector options={mockLabels} selected={labels} setSelected={setLabels} />
-          </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">Description</label>
+              <Textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Enter mapping description"
+                rows={2}
+              />
+            </div>
 
-          {/* Events */}
-          <div className="mb-4">
-            <label className="text-sm font-medium block mb-2">Events</label>
-            <PillsSelector options={mockEvents} selected={events} setSelected={setEvents} />
-          </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">Labels</label>
+              <PillsSelector 
+                options={availableLabels} 
+                selected={labels} 
+                setSelected={setLabels}
+                placeholder="Select labels for this mapping"
+              />
+            </div>
 
-          {/* Slack Channels */}
-          <div className="mb-6">
-            <label className="text-sm font-medium block mb-2">Slack Channels</label>
-            <PillsSelector options={mockSlackChannels} selected={channels} setSelected={setChannels} />
-          </div>
+            <div>
+              <label className="text-sm font-medium block mb-2">Events</label>
+              <PillsSelector 
+                options={availableEvents} 
+                selected={events} 
+                setSelected={setEvents}
+                placeholder="Select events to trigger this mapping"
+              />
+            </div>
 
-          <Button className="w-full" onClick={handleSave}>
-            Save Mapping
-          </Button>
+            <div>
+              <label className="text-sm font-medium block mb-2">Slack Channels</label>
+              <PillsSelector 
+                options={availableChannels} 
+                selected={channels} 
+                setSelected={setChannels}
+                placeholder="Select Slack channels for notifications"
+              />
+            </div>
+
+            <Button className="w-full" onClick={handleSave}>
+              {editData ? "Update Mapping" : "Create Mapping"}
+            </Button>
+          </div>
         </div>
       </div>
     </>
   );
 }
 
-// ---------------- Main Component ----------------
 export function LinearWorkFlow() {
+  const [projects, setProjects] = useState(mockProjects);
   const [mappings, setMappings] = useState(mockMappings);
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [editMapping, setEditMapping] = useState(null);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [projectDrawerOpen, setProjectDrawerOpen] = useState(false);
+  const [mappingDrawerOpen, setMappingDrawerOpen] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
+  const [editingMapping, setEditingMapping] = useState(null);
+  const { data, loading, error, fetchData, postData, putData, deleteData } = useApiStore();
 
-  const handleSave = (mapping) => {
-    setMappings((prev) => {
-      const exists = prev.find((m) => m.id === mapping.id);
+  // Project CRUD operations
+  const handleSaveProject = (project) => {
+    setProjects((prev) => {
+      const exists = prev.find((p) => p.id === project.id);
       if (exists) {
-        return prev.map((m) => (m.id === mapping.id ? mapping : m));
+        return prev.map((p) => (p.id === project.id ? project : p));
       }
-      return [...prev, mapping];
+      return [...prev, project];
     });
+    
+    toast.success(`Project ${project.id ? "updated" : "created"} successfully!`);
   };
 
-  const handleDelete = (id) => {
-    setMappings((prev) => prev.filter((m) => m.id !== id));
+    useEffect(() => {
+      fetchData("/mappings/projects");
+    }, []);
+
+    useEffect(() => {
+      if(data) {
+        setProjects(data);
+      }
+    }, [data]);
+
+  const handleDeleteProject = (id) => {
+    setProjects((prev) => prev.filter((p) => p.id !== id));
+    
+    // Remove mappings for this project
+    setMappings((prev) => {
+      const updated = { ...prev };
+      delete updated[id];
+      return updated;
+    });
+    
+    // If we're viewing this project, go back to projects list
+    if (selectedProject?.id === id) {
+      setSelectedProject(null);
+    }
+    
+    toast.success("Project deleted successfully!");
   };
 
+  // Mapping CRUD operations
+  const handleSaveMapping = (mapping) => {
+    setMappings((prev) => {
+      const projectMappings = prev[mapping.projectId] || [];
+      const exists = projectMappings.find((m) => m.id === mapping.id);
+      
+      if (exists) {
+        return {
+          ...prev,
+          [mapping.projectId]: projectMappings.map((m) => 
+            m.id === mapping.id ? mapping : m
+          )
+        };
+      }
+      
+      return {
+        ...prev,
+        [mapping.projectId]: [...projectMappings, mapping]
+      };
+    });
+    
+    toast.success(`Mapping ${mapping.id ? "updated" : "created"} successfully!`);
+  };
+
+  const handleDeleteMapping = (mappingId, projectId) => {
+    setMappings((prev) => ({
+      ...prev,
+      [projectId]: (prev[projectId] || []).filter((m) => m.id !== mappingId)
+    }));
+    
+    toast.success("Mapping deleted successfully!");
+  };
+
+  const currentProjectMappings = selectedProject ? (mappings[selectedProject.id] || []) : [];
+
+  // Render projects list
+  if (!selectedProject) {
+    return (
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Linear Projects</h1>
+            <p className="text-muted-foreground">Manage your Linear projects and their Slack integrations</p>
+          </div>
+          <Button onClick={() => { setEditingProject(null); setProjectDrawerOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> New Project
+          </Button>
+        </div>
+
+        {projects.length === 0 ? (
+          <Card className="p-8 text-center">
+            <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium mb-2">No projects found</h3>
+            <p className="text-muted-foreground mb-4">
+              Create your first project to start managing Linear-Slack integrations
+            </p>
+            <Button onClick={() => { setEditingProject(null); setProjectDrawerOpen(true); }}>
+              <Plus className="w-4 h-4 mr-2" /> Create Project
+            </Button>
+          </Card>
+        ) : (
+          <div className="grid gap-4">
+            {projects.map((project) => (
+              <Card key={project.id} className="p-6 hover:shadow-md transition-shadow cursor-pointer">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex-1" onClick={() => setSelectedProject(project)}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <h2 className="text-lg font-semibold">{project.name}</h2>
+                      <Badge variant={project.status === "active" ? "default" : "secondary"}>
+                        {project.status}
+                      </Badge>
+                    </div>
+                    <p className="text-muted-foreground mb-2">{project.description}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Created: {project.createdAt} • 
+                      {(mappings[project.id] || []).length} mapping(s)
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        setEditingProject(project); 
+                        setProjectDrawerOpen(true); 
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        handleDeleteProject(project.id); 
+                      }}
+                    >
+                      <Trash className="w-4 h-4 text-red-500" />
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        <ProjectDrawer
+          open={projectDrawerOpen}
+          onClose={() => setProjectDrawerOpen(false)}
+          onSave={handleSaveProject}
+          editData={editingProject}
+        />
+      </div>
+    );
+  }
+
+  // Render project mappings
   return (
     <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold">Linear → Slack Mappings</h1>
-        <Button onClick={() => { setEditMapping(null); setDrawerOpen(true); }}>
+      <div className="flex items-center gap-4 mb-6">
+        <Button 
+          variant="outline" 
+          onClick={() => setSelectedProject(null)}
+        >
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Projects
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">{selectedProject.name}</h1>
+          <p className="text-muted-foreground">{selectedProject.description}</p>
+        </div>
+        <Button onClick={() => { setEditingMapping(null); setMappingDrawerOpen(true); }}>
           <Plus className="w-4 h-4 mr-2" /> New Mapping
         </Button>
       </div>
 
-      <div className="grid gap-4">
-        {mappings.map((mapping) => (
-          <Card key={mapping.id} className="p-4 flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-              <h2 className="font-semibold">{mapping.project}</h2>
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => { setEditMapping(mapping); setDrawerOpen(true); }}>
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button variant="outline" size="sm" onClick={() => handleDelete(mapping.id)}>
-                  <Trash className="w-4 h-4 text-red-500" />
-                </Button>
+      {currentProjectMappings.length === 0 ? (
+        <Card className="p-8 text-center">
+          <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-lg font-medium mb-2">No mappings configured</h3>
+          <p className="text-muted-foreground mb-4">
+            Create your first mapping to connect Linear issues with Slack channels
+          </p>
+          <Button onClick={() => { setEditingMapping(null); setMappingDrawerOpen(true); }}>
+            <Plus className="w-4 h-4 mr-2" /> Create Mapping
+          </Button>
+        </Card>
+      ) : (
+        <div className="grid gap-4">
+          {currentProjectMappings.map((mapping) => (
+            <Card key={mapping.id} className="p-6">
+              <div className="flex justify-between items-start mb-4">
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold mb-2">{mapping.name}</h2>
+                  <p className="text-muted-foreground mb-4">{mapping.description}</p>
+                  
+                  <div className="space-y-3">
+                    <div>
+                      <span className="text-sm font-medium">Labels: </span>
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {mapping.labels.map((label) => (
+                          <Badge key={label} variant="outline">{label}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium">Events: </span>
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {mapping.events.map((event) => (
+                          <Badge key={event} className="bg-blue-100 text-blue-800">{event}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <span className="text-sm font-medium">Channels: </span>
+                      <div className="flex gap-2 flex-wrap mt-1">
+                        {mapping.channels.map((channel) => (
+                          <Badge key={channel} className="bg-green-100 text-green-800">{channel}</Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => { setEditingMapping(mapping); setMappingDrawerOpen(true); }}
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => handleDeleteMapping(mapping.id, selectedProject.id)}
+                  >
+                    <Trash className="w-4 h-4 text-red-500" />
+                  </Button>
+                </div>
               </div>
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {mapping.labels.map((l) => (
-                <Badge key={l}>{l}</Badge>
-              ))}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {mapping.events.map((e) => (
-                <Badge key={e} className="bg-blue-100 text-blue-800">
-                  {e}
-                </Badge>
-              ))}
-            </div>
-            <div className="flex gap-2 flex-wrap">
-              {mapping.channels.map((c) => (
-                <Badge key={c} className="bg-green-100 text-green-800">
-                  {c}
-                </Badge>
-              ))}
-            </div>
-          </Card>
-        ))}
-      </div>
+            </Card>
+          ))}
+        </div>
+      )}
 
-      <Drawer
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSave={handleSave}
-        editData={editMapping}
+      <MappingDrawer
+        open={mappingDrawerOpen}
+        onClose={() => setMappingDrawerOpen(false)}
+        onSave={handleSaveMapping}
+        editData={editingMapping}
+        projectId={selectedProject.id}
       />
     </div>
-  )}
+  );
+}
