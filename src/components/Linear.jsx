@@ -5,7 +5,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/inpute";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Plus, X, Edit, Trash, ArrowLeft, Settings, FolderOpen } from "lucide-react";
+import { Plus, X, Edit, Trash, ArrowLeft, Settings, FolderOpen, RefreshCcw } from "lucide-react";
 import { toast } from "sonner";
 import useApiStore from "../stores/apiStore";
 
@@ -426,6 +426,14 @@ export function LinearWorkFlow() {
     toast.success("Mapping deleted successfully!");
   };
 
+  const handleSync = () => {
+    setTimeout(()=>{
+
+    }, 3000)
+    
+    console.log("refreshed")
+  }
+
   const currentProjectMappings = selectedProject ? (mappings[selectedProject.id] || []) : [];
 
   // Render projects list
@@ -437,8 +445,8 @@ export function LinearWorkFlow() {
             <h1 className="text-2xl font-bold">Linear Projects</h1>
             <p className="text-muted-foreground">Manage your Linear projects and their Slack integrations</p>
           </div>
-          <Button onClick={() => { setEditingProject(null); setProjectDrawerOpen(true); }}>
-            <Plus className="w-4 h-4 mr-2" /> New Project
+          <Button onClick={() => { handleSync()}}>
+            { loading ? "loading" : <>Sync <RefreshCcw /></>}
           </Button>
         </div>
 
@@ -466,10 +474,10 @@ export function LinearWorkFlow() {
                       </Badge>
                     </div>
                     <p className="text-muted-foreground mb-2">{project.description}</p>
-                    <p className="text-sm text-muted-foreground">
+                    {/* <p className="text-sm text-muted-foreground">
                       Created: {project.createdAt} • 
                       {(mappings[project.id] || []).length} mapping(s)
-                    </p>
+                    </p> */}
                   </div>
                   <div className="flex gap-2">
                     <Button 
