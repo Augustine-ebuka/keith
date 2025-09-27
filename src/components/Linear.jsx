@@ -9,30 +9,6 @@ import { Plus, X, Edit, Trash, ArrowLeft, Settings, FolderOpen, RefreshCcw } fro
 import { toast } from "sonner";
 import useApiStore from "../stores/apiStore";
 
-// Mock data for projects
-const mockProjects = [
-  {
-    id: "p1",
-    name: "Project Alpha",
-    description: "Frontend application for customer portal",
-    status: "active",
-    createdAt: "2024-01-15"
-  },
-  {
-    id: "p2", 
-    name: "Project Beta",
-    description: "Backend API services and microservices",
-    status: "active",
-    createdAt: "2024-02-01"
-  },
-  {
-    id: "p3",
-    name: "Project Gamma", 
-    description: "Mobile application for iOS and Android",
-    status: "inactive",
-    createdAt: "2024-01-30"
-  }
-];
 
 // Mock data for mappings
 const mockMappings = {
@@ -136,31 +112,25 @@ function ProjectDrawer({ open, onClose, onSave, editData }) {
     }
   }, [editData, open]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!name.trim()) {
       toast.error("Project name is required");
       return;
     }
 
+    // Only send name and description
     const projectPayload = {
-      id: editData?.id || `p${Date.now()}`,
       name: name.trim(),
       description: description.trim(),
-      // status,
-      // createdAt: editData?.createdAt || new Date().toISOString().split('T')[0]
     };
 
-    onSave(projectPayload);
-
-    if (editData) {
-      // Edit mode: update existing project
-      putData(`/mappings/projects/${editData.id}`, projectPayload);
-    } else {
-      // Create mode: create new project
-      postData('/mappings/projects', projectPayload);
+    try {
+      await putData(`/mappings/projects/${editData?.id}?name=${projectPayload.name}&description=${projectPayload.description}`);
+      toast.success("Project updated successfully!");
+      onClose();
+    } catch (err) {
+      toast.error("Failed to update project. " + (err?.message || error));
     }
-
-    onClose();
   };
 
   if (!open) return null;
@@ -343,7 +313,7 @@ function MappingDrawer({ open, onClose, onSave, editData, projectId }) {
 }
 
 export function LinearWorkFlow() {
-  const [projects, setProjects] = useState(mockProjects);
+  const [projects, setProjects] = useState([]);
   const [mappings, setMappings] = useState(mockMappings);
   const [selectedProject, setSelectedProject] = useState(null);
   const [projectDrawerOpen, setProjectDrawerOpen] = useState(false);
@@ -353,27 +323,33 @@ export function LinearWorkFlow() {
   const { data, loading, error, fetchData, postData, putData, deleteData } = useApiStore();
 
   // Project CRUD operations
-  const handleSaveProject = (project) => {
-    setProjects((prev) => {
-      const exists = prev.find((p) => p.id === project.id);
-      if (exists) {
-        return prev.map((p) => (p.id === project.id ? project : p));
-      }
-      return [...prev, project];
-    });
-    
-    toast.success(`Project ${project.id ? "updated" : "created"} successfully!`);
-  };
+  // No longer needed, ProjectDrawer handles update directly
+  const handleSaveProject = () => {};
 
     useEffect(() => {
       fetchData("/mappings/projects");
     }, []);
+    
 
+    // Handle data processing and UI feedback
     useEffect(() => {
-      if(data) {
-        setProjects(data);
+      // Handle successful data loading
+      if (data && !loading && !error) {
+        // Ensure projects is always an array
+        if (Array.isArray(data)) {
+          setProjects(data);
+        } else if (data && Array.isArray(data.projects)) {
+          setProjects(data.projects);
+        }
+        toast.success("Projects fetched successfully!");
+        // onClose();
       }
-    }, [data]);
+  
+  // Handle error state
+  if (error) {
+    toast.error("Failed to fetch projects");
+  }
+}, [data, loading, error]);
 
   const handleDeleteProject = (id) => {
     setProjects((prev) => prev.filter((p) => p.id !== id));
@@ -390,7 +366,7 @@ export function LinearWorkFlow() {
       setSelectedProject(null);
     }
     
-    toast.success("Project deleted successfully!");
+    toast.success(`Project deleted successfully! ${id}`);
   };
 
   // Mapping CRUD operations
@@ -445,7 +421,7 @@ export function LinearWorkFlow() {
             <h1 className="text-2xl font-bold">Linear Projects</h1>
             <p className="text-muted-foreground">Manage your Linear projects and their Slack integrations</p>
           </div>
-          <Button onClick={() => { handleSync()}}>
+          <Button onClick={() => { fetchData("/mappings/projects") }}>
             { loading ? "loading" : <>Sync <RefreshCcw /></>}
           </Button>
         </div>
@@ -455,16 +431,13 @@ export function LinearWorkFlow() {
             <FolderOpen className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No projects found</h3>
             <p className="text-muted-foreground mb-4">
-              Create your first project to start managing Linear-Slack integrations
+              No projects available. Please sync to fetch projects.
             </p>
-            <Button onClick={() => { setEditingProject(null); setProjectDrawerOpen(true); }}>
-              <Plus className="w-4 h-4 mr-2" /> Create Project
-            </Button>
           </Card>
         ) : (
           <div className="grid gap-4">
-            {projects.map((project) => (
-              <Card key={project.id} className="p-6 hover:shadow-md transition-shadow cursor-pointer">
+            {Array.isArray(projects) && projects.map((project) => (
+              <Card key={project.id || project.name || Math.random()} className="p-6 hover:shadow-md transition-shadow cursor-pointer">
                 <div className="flex justify-between items-start mb-4">
                   <div className="flex-1" onClick={() => setSelectedProject(project)}>
                     <div className="flex items-center gap-2 mb-2">
