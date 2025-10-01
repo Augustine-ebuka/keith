@@ -21,7 +21,8 @@ import {
   Home,
   ChevronRight,
   GitBranchIcon,
-  NotebookPen
+  NotebookPen,
+  Slack
 } from "lucide-react";
 
 
@@ -37,9 +38,15 @@ export function AppLayout({ children, currentPage, onNavigate }) {
     },
     {
       id: "linear",
-      title: "Mapping",
+      title: "Linear Mapping",
       icon: GitBranchIcon,
       description: "Linear Walkflow"
+    },
+    {
+      id: "slack",
+      title: "Slack Mapping",
+      icon: Slack,
+      description: "Slack Walkflow"
     },
     {
       id: "issue",

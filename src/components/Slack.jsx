@@ -125,8 +125,9 @@ function ProjectDrawer({ open, onClose, onSave, editData }) {
     };
 
     try {
-      await putData(`/mappings/projects/${editData?.id}?name=${projectPayload.name}&description=${projectPayload.description}`);
-      fetchData("/mappings/projects")
+      await putData(`/mappings/channels/${editData?.id}?name=${projectPayload.name}&description=${projectPayload.description}`);
+      fetchData("/mappings/channels")
+      toast.success("Project updated successfully!");
       onClose();
     } catch (err) {
       toast.error("Failed to update project. " + (err?.message || error));
@@ -312,7 +313,7 @@ function MappingDrawer({ open, onClose, onSave, editData, projectId }) {
   );
 }
 
-export function LinearWorkFlow() {
+export function SlackWorkFlow() {
   const [projects, setProjects] = useState([]);
   const [mappings, setMappings] = useState(mockMappings);
   const [selectedProject, setSelectedProject] = useState(null);
@@ -327,7 +328,7 @@ export function LinearWorkFlow() {
   const handleSaveProject = () => {};
 
     useEffect(() => {
-      fetchData("/mappings/projects");
+      fetchData("/mappings/channels");
     }, []);
     
 
@@ -340,8 +341,8 @@ export function LinearWorkFlow() {
           setProjects(data);
         } else if (data && Array.isArray(data.projects)) {
           setProjects(data.projects);
+          toast.success("Channels fetched successfully!");
         }
-        toast.success("Projects fetched successfully!");
         // onClose();
       }
   
@@ -418,10 +419,10 @@ export function LinearWorkFlow() {
       <div className="p-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-2xl font-bold">Linear Projects</h1>
-            <p className="text-muted-foreground">Manage your Linear projects and their Slack integrations</p>
+            <h1 className="text-2xl font-bold">Slack Channel</h1>
+            <p className="text-muted-foreground">Manage your Slack integrations</p>
           </div>
-          <Button onClick={() => { fetchData("/mappings/projects") }}>
+          <Button onClick={() => { fetchData("/mappings/channels") }}>
             { loading ? "loading" : <>Sync <RefreshCcw /></>}
           </Button>
         </div>
