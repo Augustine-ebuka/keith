@@ -25,7 +25,7 @@ import {
 
 const SIDEBAR_COOKIE_NAME = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
-const SIDEBAR_WIDTH = "16rem";
+const SIDEBAR_WIDTH = "12rem";
 const SIDEBAR_WIDTH_MOBILE = "18rem";
 const SIDEBAR_WIDTH_ICON = "3rem";
 const SIDEBAR_KEYBOARD_SHORTCUT = "b";
@@ -283,7 +283,7 @@ function SidebarHeader({ className = "", ...props }) {
     <div
       data-slot="sidebar-header"
       data-sidebar="header"
-      className={`flex flex-col gap-2 p-2 ${className}`}
+      className={`flex flex-col bg-[#FAFAFA] gap-2 p-2 ${className}`}
       {...props}
     />
   );
@@ -294,7 +294,7 @@ function SidebarFooter({ className = "", ...props }) {
     <div
       data-slot="sidebar-footer"
       data-sidebar="footer"
-      className={`flex flex-col gap-2 p-2 ${className}`}
+      className={`flex flex-col bg-[#FAFAFA] gap-2 p-2 ${className}`}
       {...props}
     />
   );
@@ -316,7 +316,7 @@ function SidebarContent({ className = "", ...props }) {
     <div
       data-slot="sidebar-content"
       data-sidebar="content"
-      className={`flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden ${className}`}
+      className={`flex min-h-0 bg-[#FAFAFA] flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden ${className}`}
       {...props}
     />
   );

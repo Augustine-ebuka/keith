@@ -22,7 +22,8 @@ import {
   ChevronRight,
   GitBranchIcon,
   NotebookPen,
-  Slack
+  Slack,
+  Bug
 } from "lucide-react";
 
 
@@ -49,9 +50,15 @@ export function AppLayout({ children, currentPage, onNavigate }) {
       description: "Slack Walkflow"
     },
     {
-      id: "issue",
-      title: "Report",
+      id: "feature",
+      title: "Feature Report",
       icon: NotebookPen,
+      description: "Report Features"
+    },
+    {
+      id: "bug",
+      title: "Bug Report",
+      icon: Bug,
       description: "Report bug"
     },
   ];
