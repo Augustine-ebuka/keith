@@ -11,7 +11,8 @@ import { WorkflowOverview } from "./components/workflowoverview";
 import { SettingsPage } from "./components/settings";
 import {LinearWorkFlow} from "./components/Linear"
 import {SlackWorkFlow} from "./components/Slack"
-import { IssueIntake } from './components/issueIntake';
+import { IssueIntake } from './components/featureBug';
+import { BugReport } from './components/bugReport';
 
 
 
@@ -29,8 +30,10 @@ function App() {
         return <LinearWorkFlow />
       case "slack":
         return <SlackWorkFlow />
-      case "issue":
+      case "feature":
         return <IssueIntake />
+      case "bug":
+        return <BugReport />
 
       default:
         return <div>hello</div>;

@@ -3,9 +3,8 @@ import { create } from 'zustand';
 import axios from 'axios';
 
 // Set axios defaults for baseURL and x-api-key header
-axios.defaults.baseURL = "https://keith-staging.penilabs.com"
-axios.defaults.headers.common['x-api-key'] = "649b1136e94efa4ad602e5bf41b356f7409bfbf8f6a61d4188ee12bc8f279442"
-// axios.defaults.headers.common['x-api-key'] = import.meta.env.VITE_APP_KEY;
+axios.defaults.baseURL = import.meta.env.VITE_API_URL;
+axios.defaults.headers.common['x-api-key'] = import.meta.env.VITE_APP_KEY;
 
 const useApiStore = create((set) => ({
   data: null,

@@ -1,7 +1,7 @@
 import React from 'react'
 import { Card } from '../components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tab";
-import  {IssueIntake}  from '../components/issueIntake';
+import  {IssueIntake}  from '../components/featureBug';
 import { WorkflowOverview } from '../components/workflowoverview';
 
 import { 
